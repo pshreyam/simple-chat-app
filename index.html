@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat App</title>
+    <style>
+      * {
+        padding: 0;
+        margin: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f5f5f5;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100vh; /* Full viewport height */
+      }
+
+      #output {
+        flex: 1; /* This allows the output div to grow */
+        min-width: 100vw; /* Full width */
+        padding: 10px;
+        background-color: white;
+        border-radius: 8px;
+        overflow-y: auto; /* Enable vertical scrolling */
+        display: flex;
+        flex-direction: column;
+      }
+
+      .message {
+        margin: 5px 0;
+        padding: 10px;
+        border-radius: 15px;
+        max-width: 60%;
+        word-wrap: break-word; /* Wrap long words to avoid overflow */
+      }
+
+      .current-user {
+        background-color: #dcf8c6; /* Light green for current user messages */
+        align-self: flex-end; /* Align messages to the right */
+        color: black;
+      }
+
+      .other-user {
+        background-color: #e1e1e1; /* Light gray for other users */
+        align-self: flex-start; /* Align messages to the left */
+        color: black;
+      }
+
+      .system-broadcast {
+        align-self: center;
+        color: gray;
+      }
+
+      .input-container {
+        display: flex;
+        padding: 10px; /* Padding for the input area */
+        background-color: #fff; /* White background for input area */
+      }
+
+      input[type="text"] {
+        flex: 1; /* Occupies full width of input container */
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-sizing: border-box; /* To include padding in width calculation */
+        margin-right: 10px; /* Space between input and button */
+      }
+
+      button {
+        border: none;
+        background-color: transparent; /* No background */
+        cursor: pointer;
+        padding: 0; /* Remove default padding */
+      }
+
+      button img {
+        width: 30px; /* Width of the icon */
+        height: 30px; /* Height of the icon */
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="output"></div>
+    <div class="input-container">
+      <input type="text" id="messageInput" placeholder="Type a message" />
+      <button onclick="sendMessage()">
+        <img
+          src="https://img.icons8.com/material-rounded/24/000000/paper-plane.png"
+          alt="Send"
+        />
+      </button>
+    </div>
+
+    <script>
+      const messageInput = document.getElementById("messageInput");
+
+      let userId = prompt("Enter your user ID (e.g., user1, user2):");
+
+      if (!userId) userId = `user-${Date.now()}`;
+
+      const ws = new WebSocket(`ws://localhost:8000/ws/${userId}`);
+
+      ws.onmessage = (event) => {
+        const outputDiv = document.getElementById("output");
+        const json_data = JSON.parse(event.data);
+        const messageElement = document.createElement("div");
+        messageElement.classList.add("message");
+
+        if (json_data.message_type === "system_broadcast") {
+          messageElement.classList.add("system-broadcast");
+          messageElement.innerHTML = json_data.data;
+        } else if (json_data.message_type === "group_message") {
+          messageElement.innerHTML = `<b>${json_data.user_id}:</b> ${json_data.data}`;
+          messageElement.classList.add(
+            json_data.current_user ? "current-user" : "other-user"
+          );
+        }
+
+        outputDiv.appendChild(messageElement);
+        outputDiv.scrollTop = outputDiv.scrollHeight; // Auto-scroll to the latest message
+      };
+
+      messageInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") sendMessage();
+      });
+
+      function sendMessage() {
+        const message = messageInput.value.trim();
+        if (message) {
+          ws.send(JSON.stringify({ data: message }));
+          messageInput.value = "";
+        }
+      }
+    </script>
+  </body>
+</html>
